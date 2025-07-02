@@ -6,31 +6,30 @@
 
 ```
 CV/
-├── data/                    # 데이터 폴더
-│   ├── train/              # 학습 이미지 (원본 + 증강)
+├── data/                   # 데이터 폴더
+│   ├── train_aug/          # 학습 이미지 (원본 + 증강)
 │   ├── test/               # 테스트 이미지
 │   ├── train.csv           # 학습 데이터 메타
 │   ├── meta.csv            # 클래스 메타데이터
 │   └── train_augmented.csv # 증강된 데이터 메타
 ├── models/                 # 학습된 모델 저장
 ├── src/                    # 소스 코드
-│   ├── data/              # 데이터 처리
+│   ├── data/               # 데이터 처리
 │   │   ├── __init__.py          # 패키지 초기화
 │   │   ├── EDA.py               # 탐색적 데이터 분석
 │   │   ├── augmentation.py      # 데이터 증강
 │   │   └── data_preprocessing.py # 데이터 전처리
-│   ├── model/             # 모델 관련
+│   ├── model/                   # 모델 관련
 │   │   ├── __init__.py          # 패키지 초기화
 │   │   └── model_architecture.py # 모델 아키텍처
-│   ├── train/             # 학습 관련
+│   ├── train/                   # 학습 관련
 │   │   ├── __init__.py          # 패키지 초기화
 │   │   ├── training_pipeline.py # 학습 파이프라인
 │   │   └── run_training.py      # 학습 실행 스크립트
-│   └── inference/         # 추론 관련
+│   └── inference/               # 추론 관련
 │       ├── __init__.py          # 패키지 초기화
-│       ├── inference.py         # 추론 모듈
-│       └── run_inference.py     # 추론 실행 스크립트
-└── requirements.txt       # 의존성 패키지
+│       └── inference.py         # 추론 모듈
+└── requirements.txt             # 의존성 패키지
 ```
 
 ## 설치 및 설정
@@ -41,9 +40,9 @@ pip install -r requirements.txt
 ```
 
 2. **데이터 준비**
-- `data/train/`: 학습 이미지 파일들
+- `data/train_aug/`: 학습 이미지 파일들
 - `data/test/`: 테스트 이미지 파일들
-- `data/train.csv`: 학습 데이터 메타데이터
+- `data/train_augmented.csv`: 학습 데이터 메타데이터
 - `data/meta.csv`: 클래스 정보
 
 ## 사용법
@@ -55,7 +54,7 @@ cd src
 python data/augmentation.py
 ```
 
-증강된 이미지는 `data/train/` 폴더에 저장되고, 메타데이터는 `data/train_augmented.csv`에 저장됩니다.
+증강된 이미지는 `data/train_aug/` 폴더에 저장되고, 메타데이터는 `data/train_augmented.csv`에 저장됩니다.
 
 ### 2. 모델 학습
 
@@ -86,14 +85,14 @@ python train/run_training.py --use-wandb --wandb-project my-project --wandb-run-
 python train/run_training.py --model efficientnet_b0 --epochs 30 --use-wandb --wandb-project document-classification
 ```
 
+학습된 모델은 `models/` 폴더에 저장됩니다.
+
 #### 2.3 wandb 설정
 wandb를 사용하려면 먼저 로그인해야 합니다:
 ```bash
 pip install wandb
 wandb login
 ```
-
-학습된 모델은 `models/` 폴더에 저장됩니다.
 
 ### 3. 추론 (Inference)
 
