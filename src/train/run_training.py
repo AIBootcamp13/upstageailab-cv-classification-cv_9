@@ -10,12 +10,15 @@ import sys
 import argparse
 import torch
 import pandas as pd
-import numpy as np
 from pathlib import Path
 
-# 커스텀 모듈 임포트
+# 현재 파일의 위치 (예: /root/CV/src/train/run_training.py)
 current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(os.path.dirname(current_dir))
+
+# 프로젝트 루트 경로 (예: /root/CV)
+project_root = os.path.abspath(os.path.join(current_dir, '..', '..'))
+
+# 루트 경로를 PYTHONPATH에 추가
 sys.path.append(project_root)
 
 from src.data.EDA import ImageClassificationEDA
@@ -29,8 +32,8 @@ def run_eda():
     print("1단계: EDA (탐색적 데이터 분석)")
     print("=" * 50)
     
-    data_path = "data/train"
-    train_csv_path = "data/train.csv"
+    data_path = "data/train_aug"
+    train_csv_path = "data/train_augmented.csv"
     meta_csv_path = "data/meta.csv"
     
     # EDA 실행
@@ -39,32 +42,19 @@ def run_eda():
     
     return eda
 
-def run_preprocessing(use_kfold=True, n_splits=5, fold_idx=None):
+def run_preprocessing():
     """데이터 전처리 실행"""
     print("\n" + "=" * 50)
     print("2단계: 데이터 전처리")
     print("=" * 50)
     
     try:
-        if use_kfold:
-            print(f"Stratified K-Fold 검증 사용 (폴드 수: {n_splits})")
-            if fold_idx is not None:
-                print(f"특정 폴드 사용: Fold {fold_idx + 1}")
-            else:
-                print("기본 폴드 사용: Fold 1")
-        
-        train_loader, val_loader, validator, dataloaders = preprocess_data(
-            use_kfold=use_kfold, 
-            n_splits=n_splits, 
-            fold_idx=fold_idx
-        )
+        train_loader, val_loader = preprocess_data()
         print("✅ 데이터 전처리 완료")
-        return train_loader, val_loader, validator, dataloaders
+        return train_loader, val_loader
     except Exception as e:
         print(f"❌ 데이터 전처리 실패: {e}")
-        import traceback
-        traceback.print_exc()
-        return None, None, None, None
+        return None, None
 
 def run_training(train_loader, val_loader, config):
     """모델 학습 실행"""
@@ -135,7 +125,7 @@ def run_evaluation(trainer, val_loader, meta_df, device, model_path=None):
     predictions, targets, probabilities = evaluator.evaluate()
     
     # 리포트 생성
-    save_dir = Path("results/evaluation")
+    save_dir = os.path.join(project_root, "results/evaluation")
     report = evaluator.generate_report(predictions, targets, probabilities, save_dir)
     
     print("✅ 모델 평가 완료")
@@ -163,12 +153,7 @@ def create_experiment_config(args):
     
     # 실험별 저장 디렉토리
     experiment_name = f"{config['model_name']}_{config['optimizer']}_{config['loss_function']}"
-    config['save_dir'] = f"models/{experiment_name}"
-    
-    # wandb 설정
-    config['use_wandb'] = args.use_wandb
-    config['wandb_project'] = args.wandb_project
-    config['wandb_run_name'] = args.wandb_run_name
+    config['save_dir'] = os.path.join(project_root, f"models/{experiment_name}")
     
     return config
 
@@ -199,21 +184,6 @@ def main():
                        help='평가 단계만 실행')
     parser.add_argument('--model-path', type=str, default='models/final_model.pth',
                        help='평가할 모델 파일 경로 (evaluation-only 모드에서 사용)')
-    parser.add_argument('--use-wandb', action='store_true',
-                       help='wandb 로깅 활성화')
-    parser.add_argument('--wandb-project', type=str, default='image-classification',
-                       help='wandb 프로젝트 이름')
-    parser.add_argument('--wandb-run-name', type=str, default=None,
-                       help='wandb 실행 이름 (None이면 자동 생성)')
-    parser.add_argument('--use-kfold', action='store_true', default=True,
-                       help='Stratified K-Fold 검증 사용')
-    parser.add_argument('--n-splits', type=int, default=5,
-                       help='K-Fold 분할 수')
-    parser.add_argument('--fold-idx', type=int, default=None,
-                       help='사용할 폴드 인덱스 (None이면 첫 번째 폴드)')
-    parser.add_argument('--cross-validate', action='store_true',
-                       help='모든 폴드에 대해 교차 검증 실행')
-
     
     args = parser.parse_args()
     
@@ -221,8 +191,8 @@ def main():
     print(f"실험 설정: {args}")
     
     # 결과 디렉토리 생성
-    os.makedirs("results", exist_ok=True)
-    os.makedirs("models", exist_ok=True)
+    os.makedirs(os.path.join(project_root, "results"), exist_ok=True)
+    os.makedirs(os.path.join(project_root, "models"), exist_ok=True)
     
     # 1단계: EDA
     # eda = None
@@ -231,93 +201,22 @@ def main():
     
     # 2단계: 데이터 전처리
     train_loader, val_loader = None, None
-    validator, dataloaders = None, None
-    
     if not args.skip_preprocessing:
-        train_loader, val_loader, validator, dataloaders = run_preprocessing(
-            use_kfold=args.use_kfold,
-            n_splits=args.n_splits,
-            fold_idx=args.fold_idx
-        )
+        train_loader, val_loader = run_preprocessing()
         if train_loader is None:
             print("❌ 전처리 실패로 인해 학습을 중단합니다.")
-            return
+            return    
     
     # 3단계: 모델 학습
     trainer = None
     best_accuracy = 0.0
-    
     if not args.skip_training:
         config = create_experiment_config(args)
-        
-        if args.cross_validate and validator is not None:
-            # 모든 폴드에 대해 교차 검증
-            print("\n" + "=" * 50)
-            print("교차 검증 시작")
-            print("=" * 50)
-            
-            fold_accuracies = []
-            fold_trainers = []
-            
-            for fold_idx in range(len(dataloaders)):
-                print(f"\n--- Fold {fold_idx + 1} 학습 시작 ---")
-                
-                # 해당 폴드의 데이터 로더 가져오기
-                fold_data = dataloaders[fold_idx]
-                fold_train_loader = fold_data['train_loader']
-                fold_val_loader = fold_data['val_loader']
-                
-                # 폴드별 설정 업데이트
-                fold_config = config.copy()
-                fold_config['save_dir'] = f"{config['save_dir']}/fold_{fold_idx + 1}"
-                fold_config['wandb_run_name'] = f"{config['wandb_run_name']}_fold_{fold_idx + 1}" if config['wandb_run_name'] else f"fold_{fold_idx + 1}"
-                
-                # 학습 실행
-                fold_trainer, fold_accuracy = run_training(fold_train_loader, fold_val_loader, fold_config)
-                
-                fold_accuracies.append(fold_accuracy)
-                fold_trainers.append(fold_trainer)
-                
-                print(f"Fold {fold_idx + 1} 정확도: {fold_accuracy:.4f}")
-            
-            # 교차 검증 결과 요약
-            mean_accuracy = np.mean(fold_accuracies)
-            std_accuracy = np.std(fold_accuracies)
-            
-            print(f"\n=== 교차 검증 결과 ===")
-            print(f"평균 정확도: {mean_accuracy:.4f} ± {std_accuracy:.4f}")
-            print(f"최고 정확도: {max(fold_accuracies):.4f}")
-            print(f"최저 정확도: {min(fold_accuracies):.4f}")
-            
-            # 결과 저장
-            results = {
-                'fold_accuracies': fold_accuracies,
-                'mean_accuracy': mean_accuracy,
-                'std_accuracy': std_accuracy,
-                'best_accuracy': max(fold_accuracies),
-                'worst_accuracy': min(fold_accuracies)
-            }
-            
-            import json
-            with open(f"{config['save_dir']}/cross_validation_results.json", 'w') as f:
-                json.dump(results, f, indent=2)
-            
-            print(f"교차 검증 결과 저장: {config['save_dir']}/cross_validation_results.json")
-            
-            # 가장 좋은 성능의 모델을 메인 모델로 설정
-            best_fold_idx = np.argmax(fold_accuracies)
-            trainer = fold_trainers[best_fold_idx]
-            best_accuracy = fold_accuracies[best_fold_idx]
-            
-            print(f"최고 성능 모델: Fold {best_fold_idx + 1} (정확도: {best_accuracy:.4f})")
-            
-        else:
-            # 단일 폴드 학습
-            trainer, best_accuracy = run_training(train_loader, val_loader, config)
+        trainer, best_accuracy = run_training(train_loader, val_loader, config)
     
     # 4단계: 모델 평가
     if not args.skip_evaluation:
-        meta_df = pd.read_csv("data/meta.csv")
+        meta_df = pd.read_csv(os.path.join(project_root, "data/meta.csv"))
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
         if args.evaluation_only:

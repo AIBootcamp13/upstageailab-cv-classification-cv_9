@@ -469,226 +469,15 @@ def visualize_preprocessing_results(data_path, train_csv_path, meta_csv_path, nu
     
     plt.show()
 
-def preprocess_data(use_kfold=True, n_splits=5, fold_idx=None):
-    """데이터 전처리 메인 함수 - Stratified K-Fold 또는 단일 분할"""
+def preprocess_data():
+    """데이터 전처리 메인 함수 - train 폴더의 모든 이미지 사용 (원본 + 증강)"""
     print("=== 데이터 전처리 시작 ===")
     
-    if use_kfold:
-        # Stratified K-Fold 검증 사용
-        validator, dataloaders, final_train_df, meta_df = create_stratified_kfold_data(
-            n_splits=n_splits, 
-            random_state=42
-        )
-        
-        if fold_idx is not None:
-            # 특정 폴드만 반환
-            if fold_idx >= len(dataloaders):
-                raise ValueError(f"폴드 인덱스 {fold_idx}가 범위를 벗어났습니다. (0-{len(dataloaders)-1})")
-            
-            fold_data = dataloaders[fold_idx]
-            print(f"\n=== Fold {fold_idx + 1} 데이터 로더 반환 ===")
-            return fold_data['train_loader'], fold_data['val_loader'], validator, dataloaders
-        else:
-            # 첫 번째 폴드 반환 (기본값)
-            fold_data = dataloaders[0]
-            print(f"\n=== Fold 1 데이터 로더 반환 (기본값) ===")
-            return fold_data['train_loader'], fold_data['val_loader'], validator, dataloaders
-    else:
-        # 기존 단일 분할 방식
-        print("=== 단일 분할 방식 사용 ===")
-        
-        # 파일 경로 설정
-        train_path = os.path.join(project_root, "data/train")
-        train_csv_path = os.path.join(project_root, "data/train.csv")
-        train_augmented_csv_path = os.path.join(project_root, "data/train_augmented.csv")
-        meta_csv_path = os.path.join(project_root, "data/meta.csv")
-        
-        # 데이터 로드
-        train_df = pd.read_csv(train_csv_path)
-        meta_df = pd.read_csv(meta_csv_path)
-        
-        print(f"원본 데이터 크기: {len(train_df)}")
-        
-        # 증강된 데이터가 있는지 확인하고 로드
-        if os.path.exists(train_augmented_csv_path):
-            train_augmented_df = pd.read_csv(train_augmented_csv_path)
-            print(f"증강된 데이터 크기: {len(train_augmented_df)}")
-            
-            # 원본과 증강된 데이터 통합
-            final_train_df = train_augmented_df.copy()
-            print(f"통합된 데이터 크기: {len(final_train_df)}")
-            
-            # 증강된 샘플 수 확인
-            augmented_count = len(final_train_df[final_train_df['is_augmented'] == True])
-            original_count = len(final_train_df[final_train_df['is_augmented'] == False])
-            print(f"  - 원본 샘플: {original_count}")
-            print(f"  - 증강 샘플: {augmented_count}")
-        else:
-            print("증강된 데이터가 없습니다. 원본 데이터만 사용합니다.")
-            final_train_df = train_df.copy()
-        
-        # 학습/검증 분할 (80:20)
-        from sklearn.model_selection import train_test_split
-        
-        train_data, val_data = train_test_split(
-            final_train_df, 
-            test_size=0.2, 
-            random_state=42, 
-            stratify=final_train_df['target']
-        )
-        
-        print(f"학습 데이터 크기: {len(train_data)}")
-        print(f"검증 데이터 크기: {len(val_data)}")
-        
-        # 전처리기 생성
-        preprocessor = ImagePreprocessor(target_size=(224, 224))
-        
-        # 데이터 로더 생성
-        print("\n=== train 폴더의 모든 이미지 사용하여 데이터 로더 생성 ===")
-        train_loader = preprocessor.create_dataloader(
-            train_data, 
-            train_path, 
-            batch_size=32, 
-            shuffle=True,
-            augmentation_level='medium'
-        )
-        
-        val_loader = preprocessor.create_dataloader(
-            val_data, 
-            train_path, 
-            batch_size=32, 
-            shuffle=False,
-            augmentation_level='medium'
-        )
-        
-        print(f"데이터 로더 생성 완료:")
-        print(f"  - 학습 데이터셋 크기: {len(train_data)}")
-        print(f"  - 검증 데이터셋 크기: {len(val_data)}")
-        print(f"  - 학습 배치 수: {len(train_loader)}")
-        print(f"  - 검증 배치 수: {len(val_loader)}")
-        print(f"  - 사용 폴더: {train_path}")
-        
-        return train_loader, val_loader, None, None
-
-class StratifiedKFoldValidator:
-    """Stratified K-Fold 검증 클래스"""
-    
-    def __init__(self, n_splits=5, random_state=42):
-        self.n_splits = n_splits
-        self.random_state = random_state
-        self.folds = []
-    
-    def create_folds(self, df):
-        """Stratified K-Fold 분할 생성"""
-        from sklearn.model_selection import StratifiedKFold
-        
-        skf = StratifiedKFold(
-            n_splits=self.n_splits, 
-            shuffle=True, 
-            random_state=self.random_state
-        )
-        
-        # 클래스별 분포 확인
-        class_counts = df['target'].value_counts().sort_index()
-        print(f"=== 클래스별 분포 ===")
-        for class_id, count in class_counts.items():
-            print(f"클래스 {class_id}: {count}개")
-        
-        # K-Fold 분할 생성
-        self.folds = []
-        for fold_idx, (train_idx, val_idx) in enumerate(skf.split(df, df['target'])):
-            train_fold = df.iloc[train_idx].reset_index(drop=True)
-            val_fold = df.iloc[val_idx].reset_index(drop=True)
-            
-            # 각 폴드의 클래스 분포 확인
-            train_class_counts = train_fold['target'].value_counts().sort_index()
-            val_class_counts = val_fold['target'].value_counts().sort_index()
-            
-            print(f"\n=== Fold {fold_idx + 1} ===")
-            print(f"학습 데이터: {len(train_fold)}개")
-            print(f"검증 데이터: {len(val_fold)}개")
-            print(f"학습/검증 비율: {len(train_fold)}/{len(val_fold)} ({len(train_fold)/len(df)*100:.1f}%/{len(val_fold)/len(df)*100:.1f}%)")
-            
-            # 클래스별 분포 확인
-            print("클래스별 분포:")
-            for class_id in sorted(df['target'].unique()):
-                train_count = train_class_counts.get(class_id, 0)
-                val_count = val_class_counts.get(class_id, 0)
-                print(f"  클래스 {class_id}: 학습 {train_count}개, 검증 {val_count}개")
-            
-            self.folds.append({
-                'fold_idx': fold_idx,
-                'train_data': train_fold,
-                'val_data': val_fold,
-                'train_class_counts': train_class_counts,
-                'val_class_counts': val_class_counts
-            })
-        
-        return self.folds
-    
-    def get_fold(self, fold_idx):
-        """특정 폴드 데이터 반환"""
-        if fold_idx >= len(self.folds):
-            raise ValueError(f"폴드 인덱스 {fold_idx}가 범위를 벗어났습니다. (0-{len(self.folds)-1})")
-        return self.folds[fold_idx]
-    
-    def get_all_folds(self):
-        """모든 폴드 데이터 반환"""
-        return self.folds
-    
-    def create_dataloaders_for_fold(self, fold_data, data_path, batch_size=32, augmentation_level='medium'):
-        """특정 폴드에 대한 데이터 로더 생성"""
-        preprocessor = ImagePreprocessor(target_size=(224, 224))
-        
-        # 학습 데이터 로더 (증강 적용)
-        train_loader = preprocessor.create_dataloader(
-            fold_data['train_data'],
-            data_path,
-            batch_size=batch_size,
-            shuffle=True,
-            augmentation_level=augmentation_level
-        )
-        
-        # 검증 데이터 로더 (증강 없음)
-        val_loader = preprocessor.create_dataloader(
-            fold_data['val_data'],
-            data_path,
-            batch_size=batch_size,
-            shuffle=False,
-            augmentation_level='none'  # 검증에는 증강 적용하지 않음
-        )
-        
-        return train_loader, val_loader
-    
-    def create_dataloaders_for_all_folds(self, data_path, batch_size=32, augmentation_level='medium'):
-        """모든 폴드에 대한 데이터 로더 생성"""
-        dataloaders = []
-        
-        for fold_data in self.folds:
-            train_loader, val_loader = self.create_dataloaders_for_fold(
-                fold_data, data_path, batch_size, augmentation_level
-            )
-            
-            dataloaders.append({
-                'fold_idx': fold_data['fold_idx'],
-                'train_loader': train_loader,
-                'val_loader': val_loader,
-                'train_data': fold_data['train_data'],
-                'val_data': fold_data['val_data']
-            })
-        
-        return dataloaders
-
-
-def create_stratified_kfold_data(n_splits=5, random_state=42):
-    """Stratified K-Fold 데이터 생성"""
-    print("=== Stratified K-Fold 검증 데이터 생성 ===")
-    
-    # 파일 경로 설정
-    train_path = os.path.join(project_root, "data/train")
+    # 파일 경로 설정    
+    train_path = os.path.join(project_root, "data/train_aug")
     train_csv_path = os.path.join(project_root, "data/train.csv")
     train_augmented_csv_path = os.path.join(project_root, "data/train_augmented.csv")
-    meta_csv_path = os.path.join(project_root, "data/meta.csv")
+    meta_csv_path = os.path.join(project_root,"data/meta.csv")
     
     # 데이터 로드
     train_df = pd.read_csv(train_csv_path)
@@ -701,7 +490,7 @@ def create_stratified_kfold_data(n_splits=5, random_state=42):
         train_augmented_df = pd.read_csv(train_augmented_csv_path)
         print(f"증강된 데이터 크기: {len(train_augmented_df)}")
         
-        # 원본과 증강된 데이터 통합
+        # 원본과 증강된 데이터 통합 (train_augmented.csv에는 이미 통합된 데이터가 있음)
         final_train_df = train_augmented_df.copy()
         print(f"통합된 데이터 크기: {len(final_train_df)}")
         
@@ -714,25 +503,48 @@ def create_stratified_kfold_data(n_splits=5, random_state=42):
         print("증강된 데이터가 없습니다. 원본 데이터만 사용합니다.")
         final_train_df = train_df.copy()
     
-    # Stratified K-Fold 검증기 생성
-    validator = StratifiedKFoldValidator(n_splits=n_splits, random_state=random_state)
+    # 학습/검증 분할 (80:20)
+    from sklearn.model_selection import train_test_split
     
-    # K-Fold 분할 생성
-    folds = validator.create_folds(final_train_df)
+    train_data, val_data = train_test_split(
+        final_train_df, 
+        test_size=0.2, 
+        random_state=42, 
+        stratify=final_train_df['target']
+    )
     
-    # 모든 폴드에 대한 데이터 로더 생성
-    dataloaders = validator.create_dataloaders_for_all_folds(
+    print(f"학습 데이터 크기: {len(train_data)}")
+    print(f"검증 데이터 크기: {len(val_data)}")
+    
+    # 전처리기 생성
+    preprocessor = ImagePreprocessor(target_size=(224, 224))
+    
+    # 데이터 로더 생성 (train 폴더의 모든 이미지 사용)
+    print("\n=== train 폴더의 모든 이미지 사용하여 데이터 로더 생성 ===")
+    train_loader = preprocessor.create_dataloader(
+        train_data, 
         train_path, 
         batch_size=32, 
+        shuffle=True,
         augmentation_level='medium'
     )
     
-    print(f"\n=== K-Fold 검증 설정 완료 ===")
-    print(f"폴드 수: {n_splits}")
-    print(f"총 데이터 크기: {len(final_train_df)}")
-    print(f"각 폴드 평균 크기: {len(final_train_df) // n_splits}")
+    val_loader = preprocessor.create_dataloader(
+        val_data, 
+        train_path, 
+        batch_size=32, 
+        shuffle=False,
+        augmentation_level='medium'
+    )
     
-    return validator, dataloaders, final_train_df, meta_df
+    print(f"데이터 로더 생성 완료:")
+    print(f"  - 학습 데이터셋 크기: {len(train_data)}")
+    print(f"  - 검증 데이터셋 크기: {len(val_data)}")
+    print(f"  - 학습 배치 수: {len(train_loader)}")
+    print(f"  - 검증 배치 수: {len(val_loader)}")
+    print(f"  - 사용 폴더: {train_path}")
+    
+    return train_loader, val_loader
 
 if __name__ == "__main__":
     preprocess_data()
