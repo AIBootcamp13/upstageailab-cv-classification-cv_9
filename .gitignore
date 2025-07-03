@@ -1,0 +1,17 @@
+data/
+contest/
+src/data_aug/
+models/
+*.ckpt
+*.pt
+*.pth
+*.zip
+*.tar.gz
+__pycache__/
+.ipynb_checkpoints/
+.env
+.venv
+.envrc
+.vscode/
+.idea/
+*.swp
