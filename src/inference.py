@@ -28,7 +28,11 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=CFG.BATCH_SIZE, shuffle=False, num_workers=4)
 
     # --- Load Model ---
-    model_path = f'models/best_model_{model_name}.pth'
+    # config.py에 정의된 경로에서 모델을 불러옵니다.
+    model_path = os.path.join(CFG.MODEL_SAVE_DIR, f'best_model_{model_name}.pth')
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Model file not found at {model_path}. Please train the model first.")
+
     model = timm.create_model(model_name, pretrained=False, num_classes=CFG.NUM_CLASSES)
     model.load_state_dict(torch.load(model_path, map_location=CFG.DEVICE))
     model.to(CFG.DEVICE)

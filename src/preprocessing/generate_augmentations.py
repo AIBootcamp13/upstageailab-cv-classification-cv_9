@@ -10,13 +10,18 @@ def generate_augmented_data():
     원본 학습 데이터셋에 다양한 증강 기법을 적용하여
     새로운 데이터셋을 생성하고 별도의 폴더에 저장합니다.
     """
-    # --- 경로 설정 (절대 경로 사용) ---
-    # 현재 스크립트가 /workspace/ 에 있다고 가정합니다.
-    BASE_DIR = "/workspace"
-    ORIGINAL_TRAIN_DIR = os.path.join(BASE_DIR, "data/train")
-    ORIGINAL_TRAIN_CSV = os.path.join(BASE_DIR, "data/train.csv")
+    # --- 경로 설정 (프로젝트 루트 기준 동적 경로) ---
+    # 현재 스크립트의 위치를 기준으로 프로젝트 루트를 찾습니다.
+    current_file_path = os.path.abspath(__file__)
+    preprocessing_dir = os.path.dirname(current_file_path)
+    src_dir = os.path.dirname(preprocessing_dir)
+    PROJECT_ROOT = os.path.dirname(src_dir)
+
+    ORIGINAL_DATA_DIR = os.path.join(PROJECT_ROOT, "data")
+    ORIGINAL_TRAIN_DIR = os.path.join(ORIGINAL_DATA_DIR, "train")
+    ORIGINAL_TRAIN_CSV = os.path.join(ORIGINAL_DATA_DIR, "train.csv")
     
-    AUG_DIR = os.path.join(BASE_DIR, "src", "data_aug")
+    AUG_DIR = os.path.join(src_dir, "data_aug")
     AUG_CSV_PATH = os.path.join(AUG_DIR, "train_aug.csv")
 
     # --- 출력 폴더 생성 ---

@@ -1,13 +1,30 @@
 import torch
+import os
+
+# --- 프로젝트 루트 경로 설정 ---
+# 이 config.py 파일의 위치를 기준으로 프로젝트 루트를 동적으로 찾습니다.
+# 현재 파일 경로: /path/to/project/src/config.py
+# 프로젝트 루트: /path/to/project
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__)) # /path/to/project/src
+PROJECT_ROOT = os.path.dirname(PROJECT_ROOT) # /path/to/project
 
 class CFG:
+    # --- 기본 경로 ---
+    PROJECT_ROOT_DIR = PROJECT_ROOT
+
     # --- 데이터 경로 ---
     # generate_augmentations.py로 생성한 증강 데이터셋 경로를 사용합니다.
-    TRAIN_CSV_PATH = 'src/data_aug/train_aug.csv'
-    META_CSV_PATH = 'data/meta.csv'
-    TRAIN_IMG_PATH = 'src/data_aug'
-    TEST_IMG_PATH = 'data/test'
-    SAMPLE_SUBMISSION_PATH = 'data/sample_submission.csv'
+    DATA_DIR = os.path.join(PROJECT_ROOT_DIR, 'data')
+    SRC_DIR = os.path.join(PROJECT_ROOT_DIR, 'src')
+    
+    TRAIN_CSV_PATH = os.path.join(SRC_DIR, 'data_aug', 'train_aug.csv')
+    META_CSV_PATH = os.path.join(DATA_DIR, 'meta.csv')
+    TRAIN_IMG_PATH = os.path.join(SRC_DIR, 'data_aug')
+    TEST_IMG_PATH = os.path.join(DATA_DIR, 'test')
+    SAMPLE_SUBMISSION_PATH = os.path.join(DATA_DIR, 'sample_submission.csv')
+
+    # --- 모델 저장 경로 ---
+    MODEL_SAVE_DIR = os.path.join(PROJECT_ROOT_DIR, 'models')
 
     # --- 모델 및 학습 파라미터 ---
     # train.py 실행 시 --model 인자로 다른 모델을 지정할 수 있습니다.
@@ -15,8 +32,6 @@ class CFG:
     # 인자를 주지 않을 경우 아래 모델이 기본값으로 사용됩니다.
     DEFAULT_MODEL = 'tf_efficientnetv2_s_in21k'
     IMG_SIZE = 224
-    # 모델이 커지면 메모리 부족 오류가 발생할 수 있습니다.
-    # 그럴 경우 배치 사이즈를 16이나 8로 줄여보세요.
     BATCH_SIZE = 32
     EPOCHS = 10
     LEARNING_RATE = 1e-4
