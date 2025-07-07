@@ -16,20 +16,32 @@ def main():
         '--model', type=str, default=CFG.DEFAULT_MODEL,
         help=f"Model name from timm library. Default: {CFG.DEFAULT_MODEL}"
     )
+    parser.add_argument(
+        '--img-size', type=int, default=CFG.IMG_SIZE,
+        help=f"Image size used during training. Default: {CFG.IMG_SIZE}"
+    )
+    parser.add_argument(
+        '--batch-size', type=int, default=CFG.BATCH_SIZE,
+        help=f"Batch size for inference. Default: {CFG.BATCH_SIZE}"
+    )
     args = parser.parse_args()
     model_name = args.model
-    print(f"======== Starting inference for model: {model_name} ========")
+    img_size = args.img_size
+    batch_size = args.batch_size
+    print(f"======== Starting inference ========")
+    print(f"Model: {model_name}, Image Size: {img_size}, Batch Size: {batch_size}")
 
     # 테스트 데이터 로드
     df_test = pd.read_csv(CFG.SAMPLE_SUBMISSION_PATH)
 
     # --- Dataset and DataLoader ---
-    test_dataset = DocumentDataset(df_test, CFG.TEST_IMG_PATH, transforms=get_valid_transforms(CFG.IMG_SIZE), is_test=True)
-    test_loader = DataLoader(test_dataset, batch_size=CFG.BATCH_SIZE, shuffle=False, num_workers=4)
+    test_dataset = DocumentDataset(df_test, CFG.TEST_IMG_PATH, transforms=get_valid_transforms(img_size), is_test=True)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
 
     # --- Load Model ---
     # config.py에 정의된 경로에서 모델을 불러옵니다.
-    model_path = os.path.join(CFG.MODEL_SAVE_DIR, f'best_model_{model_name}.pth')
+    # 학습 시 저장된 모델 파일 이름과 일치하도록 경로를 구성합니다.
+    model_path = os.path.join(CFG.MODEL_SAVE_DIR, f'best_model_{model_name}_sz{img_size}.pth')
     if not os.path.exists(model_path):
         raise FileNotFoundError(f"Model file not found at {model_path}. Please train the model first.")
 
@@ -49,7 +61,8 @@ def main():
 
     # --- Create Submission File ---
     df_test['target'] = all_preds
-    submission_filename = f'submission_{model_name}.csv'
+    # 제출 파일 이름에도 모델명과 이미지 크기를 포함시킵니다.
+    submission_filename = f'submission_{model_name}_sz{img_size}.csv'
     df_test.to_csv(submission_filename, index=False)
 
     print(f"Inference complete and {submission_filename} created!")

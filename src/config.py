@@ -35,5 +35,6 @@ class CFG:
     BATCH_SIZE = 32
     EPOCHS = 10
     LEARNING_RATE = 1e-4
+    PATIENCE = 3 # Early stopping을 위한 patience 값 (3 에포크 동안 개선이 없으면 중단)
     NUM_CLASSES = 17
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
