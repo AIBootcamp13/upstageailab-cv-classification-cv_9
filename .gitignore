@@ -1,5 +1,6 @@
 data/
 contest/
+submission_*.csv
 src/data_aug/
 models/
 *.ckpt
