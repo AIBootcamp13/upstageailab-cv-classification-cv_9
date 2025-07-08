@@ -89,64 +89,62 @@ def main():
     # K-Fold의 모든 분할에 대해 학습을 실행하려면 아래 for 루프의 주석을 해제하세요.
     for fold, (train_idx, val_idx) in enumerate(skf.split(df_train, df_train['target'])):
         print(f"\n=========== Fold {fold+1} ===========")
-        train_df = df_train.iloc[train_idx]
-        valid_df = df_train.iloc[val_idx]
-        # 이 예제에서는 첫 번째 fold에 대해서만 학습을 진행합니다.
-        break
+        # iloc로 데이터를 나눈 후 인덱스를 리셋하여 오류를 방지합니다.
+        train_df = df_train.iloc[train_idx].reset_index(drop=True)
+        valid_df = df_train.iloc[val_idx].reset_index(drop=True)
 
-    # --- 데이터셋 및 데이터로더 ---
-    # 오프라인 증강을 사용했으므로, 온라인에서는 가벼운 증강만 적용하거나 적용하지 않습니다.
-    train_dataset = DocumentDataset(train_df, CFG.TRAIN_IMG_PATH, transforms=get_light_transforms(img_size))
-    valid_dataset = DocumentDataset(valid_df, CFG.TRAIN_IMG_PATH, transforms=get_valid_transforms(img_size))
+        # --- 데이터셋 및 데이터로더 ---
+        train_dataset = DocumentDataset(train_df, CFG.TRAIN_IMG_PATH, transforms=get_light_transforms(img_size))
+        valid_dataset = DocumentDataset(valid_df, CFG.TRAIN_IMG_PATH, transforms=get_valid_transforms(img_size))
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
-    valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
+        valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
 
-    # --- 모델, 손실 함수, 옵티마이저 ---
-    model = timm.create_model(model_name, pretrained=True, num_classes=CFG.NUM_CLASSES)
-    model.to(CFG.DEVICE)
+        # --- 모델, 손실 함수, 옵티마이저 ---
+        # 각 fold마다 새로운 모델과 옵티마이저를 생성해야 합니다.
+        model = timm.create_model(model_name, pretrained=True, num_classes=CFG.NUM_CLASSES)
+        model.to(CFG.DEVICE)
 
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=CFG.LEARNING_RATE)
+        criterion = nn.CrossEntropyLoss()
+        optimizer = torch.optim.AdamW(model.parameters(), lr=CFG.LEARNING_RATE)
 
-    # --- 학습률 스케줄러 추가 ---
-    # CosineAnnealingLR: 에포크에 따라 코사인 곡선을 그리며 학습률을 점차 감소시킵니다.
-    # T_max: 학습률이 최소치에 도달하기까지 걸리는 에포크 수 (총 에포크 수)
-    # eta_min: 도달 가능한 최소 학습률 (0에 가까운 작은 값)
-    scheduler = CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
+        # --- 학습률 스케줄러 추가 ---
+        scheduler = CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
 
-    # --- 학습 루프 ---
-    best_f1 = 0.0
-    patience_counter = 0
-    # config.py에 정의된 모델 저장 경로를 사용합니다.
-    model_save_dir = CFG.MODEL_SAVE_DIR
-    os.makedirs(model_save_dir, exist_ok=True)
-    # 모델 파일 이름에 모델명과 이미지 크기를 포함시켜 구별이 용이하게 합니다.
-    model_save_path = os.path.join(model_save_dir, f"best_model_{model_name}_sz{img_size}.pth")
+        # --- 학습 루프 ---
+        best_f1 = 0.0
+        patience_counter = 0
+        model_save_dir = CFG.MODEL_SAVE_DIR
+        os.makedirs(model_save_dir, exist_ok=True)
+        # 모델 파일 이름에 fold 번호까지 포함시켜 구별이 용이하게 합니다.
+        model_save_path = os.path.join(model_save_dir, f"best_model_{model_name}_sz{img_size}_fold{fold}.pth")
 
-    for epoch in range(epochs):
-        print(f"--- 에포크 {epoch+1}/{epochs} ---")
-        train_loss = train_one_epoch(model, train_loader, optimizer, criterion, CFG.DEVICE)
-        val_loss, macro_f1 = validate_one_epoch(model, valid_loader, criterion, CFG.DEVICE)
+        for epoch in range(epochs):
+            print(f"--- 에포크 {epoch+1}/{epochs} ---")
+            train_loss = train_one_epoch(model, train_loader, optimizer, criterion, CFG.DEVICE)
+            val_loss, macro_f1 = validate_one_epoch(model, valid_loader, criterion, CFG.DEVICE)
 
-        print(f"학습 손실: {train_loss:.4f}, 검증 손실: {val_loss:.4f}, Macro F1: {macro_f1:.4f}, 현재 LR: {optimizer.param_groups[0]['lr']:.6f}")
+            print(f"학습 손실: {train_loss:.4f}, 검증 손실: {val_loss:.4f}, Macro F1: {macro_f1:.4f}, 현재 LR: {optimizer.param_groups[0]['lr']:.6f}")
 
-        if macro_f1 > best_f1:
-            best_f1 = macro_f1
-            patience_counter = 0  # F1 스코어가 개선되면 patience 카운터를 리셋합니다.
-            print(f"New best model found! Saving to {model_save_path}")
-            torch.save(model.state_dict(), model_save_path)
-        else:
-            patience_counter += 1
-            print(f"F1 스코어가 {patience_counter} 에포크 동안 개선되지 않았습니다.")
+            if macro_f1 > best_f1:
+                best_f1 = macro_f1
+                patience_counter = 0  # F1 스코어가 개선되면 patience 카운터를 리셋합니다.
+                print(f"New best model found! Saving to {model_save_path}")
+                torch.save(model.state_dict(), model_save_path)
+            else:
+                patience_counter += 1
+                print(f"F1 스코어가 {patience_counter} 에포크 동안 개선되지 않았습니다.")
+            
+            # 에포크가 끝날 때마다 스케줄러를 업데이트하여 학습률을 조절합니다.
+            scheduler.step()
+
+            # Early Stopping 조건 확인
+            if patience_counter >= patience:
+                print(f"Early stopping: F1 스코어가 {patience} 에포크 동안 개선되지 않아 학습을 조기 종료합니다.")
+                break
         
-        # 에포크가 끝날 때마다 스케줄러를 업데이트하여 학습률을 조절합니다.
-        scheduler.step()
-
-        # Early Stopping 조건 확인
-        if patience_counter >= patience:
-            print(f"Early stopping: F1 스코어가 {patience} 에포크 동안 개선되지 않아 학습을 조기 종료합니다.")
-            break
+        # 테스트 목적으로 첫 번째 Fold만 학습 후 중단하려면 아래 break 주석을 해제하세요.
+        # break
 
 
 if __name__ == "__main__":
