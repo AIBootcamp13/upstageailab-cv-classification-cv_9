@@ -8,21 +8,29 @@
 
 ## 0. Overview
 ### Environment
-- _Write Development environment_
+- OS: Ubuntu 20.04
+- Python: 3.10
+- GPU (Upstage Server)
+- Library:
+    PyTorch 2.0
+    albumentations
+    timm
+    pandas, scikit-learn, matplotlib
 
 ### Requirements
-- _Write Requirements_
+- requirements.txt
 
 ## 1. Competiton Info
 
 ### Overview
 
-- _Write competition information_
+- Document Type Classification | 문서 타입 분류
+- 문서 이미지를 분류하여 17개 카테고리 중 하나로 분류하는 이미지 분류 모델 개발
+- 총 17개 문서 클래스
 
 ### Timeline
 
-- ex) January 10, 2024 - Start Date
-- ex) February 10, 2024 - Final submission deadline
+- 2025. 06. 30 ~ 2025. 07.10
 
 ## 2. Components
 
@@ -50,43 +58,49 @@ e.g.
 
 ### Dataset overview
 
-- _Explain using data_
+- 학습 이미지 수: 1,570장
+- 테스트 이미지 수: 3,140장
+- 메타 정보: meta.csv로 클래스 라벨 확인
 
 ### EDA
 
-- _Describe your EDA process and step-by-step conclusion_
+- 클래스 불균형 존재
+- 테스트 이미지는 흐릿하거나 회전됨. 증강 처리 필요
+- 학습 이미지 수가 적은 편.
 
 ### Data Processing
 
-- _Describe data processing process (e.g. Data Labeling, Data Cleaning..)_
+- Resize
+- Normalize
+- Augmentation : rotate, flip, zoom, GaussNoise, GaussianBlur, RandomBrightnessContrast, sharpen, CLAHE, coarse dropout 등 37
 
 ## 4. Modeling
 
 ### Model descrition
 
-- _Write model information and why your select this model_
+- ConvNeXt Base
 
 ### Modeling Process
 
-- _Write model train and test process with capture_
+- 5-Fold Stratified KFold
+
+- Scheduler: CosineAnnealingWarmRestarts (T_0=5, T_mult=2, eta_min=1e-6)
+
+- Mixup + CutMix
+  
+- Loss: Label Smoothing CrossEntropy (eps=0.1)
+  
+- TTA (sharpen, CLAHE)
 
 ## 5. Result
 
 ### Leader Board
 
-- _Insert Leader Board Capture_
-- _Write rank and score_
+<img width="817" height="647" alt="image" src="https://github.com/user-attachments/assets/4dc21f92-3d62-4f2f-817e-54100a7283e2" />
+
 
 ### Presentation
 
-- _Insert your presentaion file(pdf) link_
+- [_Insert your presentaion file(pdf) link_](https://docs.google.com/presentation/d/1eVMUZeacCLKNIXcOJ3W-VZHJXaa8LcjP/edit?slide=id.g36dabd66d17_2_6#slide=id.g36dabd66d17_2_6)
 
-## etc
 
-### Meeting Log
-
-- _Insert your meeting log link like Notion or Google Docs_
-
-### Reference
-
-- _Insert related reference_
