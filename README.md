@@ -97,10 +97,11 @@ e.g.
 - TTA (sharpen, CLAHE)
 
 ## 5. Result
+<img width="942" height="803" alt="스크린샷 2025-07-11 오후 1 19 33" src="https://github.com/user-attachments/assets/958682a0-3a61-43e8-b5e0-d7b64bd78fef" />
 
 ### Leader Board
 
-<img width="817" height="647" alt="image" src="https://github.com/user-attachments/assets/4dc21f92-3d62-4f2f-817e-54100a7283e2" />
+
 
 
 ### Presentation
