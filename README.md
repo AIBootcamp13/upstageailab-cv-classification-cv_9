@@ -61,6 +61,9 @@ e.g.
 - 메타 정보: meta.csv로 클래스 라벨 확인
 
 ### EDA
+<img width="776" height="488" alt="스크린샷 2025-07-11 오후 1 14 40" src="https://github.com/user-attachments/assets/11408ac4-8bdf-4df8-a30b-2d4b73c02a52" />
+<img width="589" height="594" alt="스크린샷 2025-07-11 오후 1 14 56" src="https://github.com/user-attachments/assets/eeb92fe7-109f-4b82-a070-d6dd7d8ca2a0" />
+<img width="811" height="824" alt="스크린샷 2025-07-11 오후 1 15 15" src="https://github.com/user-attachments/assets/72c77a46-791a-4a45-9499-fece77a5adf1" />
 
 - 클래스 불균형 존재
 - 테스트 이미지는 흐릿하거나 회전됨. 증강 처리 필요
@@ -76,6 +79,8 @@ e.g.
 ## 4. Modeling
 
 ### Model descrition
+<img width="949" height="680" alt="스크린샷 2025-07-11 오후 1 16 16" src="https://github.com/user-attachments/assets/42bcd31d-2af2-4abb-b62b-86af963c477f" />
+<img width="949" height="685" alt="스크린샷 2025-07-11 오후 1 16 51" src="https://github.com/user-attachments/assets/d56da7fd-b99e-4f6e-8cb4-f972387af1a0" />
 
 - ConvNeXt Base
 
